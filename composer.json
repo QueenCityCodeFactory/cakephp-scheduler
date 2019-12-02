@@ -1,9 +1,8 @@
 {
-	"name": "trentrichardson/cakephp-scheduler",
+	"name": "joeshipway/cakephp-scheduler",
 	"type": "cakephp-plugin",
 	"description": "Makes scheduling tasks in CakePHP much simpler.",
 	"keywords": ["cakephp","scheduler","cron job","task"],
-	"homepage": "http://github.com/trentrichardson/cakephp-scheduler",
 	"license": "MIT",
 	"autoload": {
 	    "psr-4": {
@@ -22,9 +21,6 @@
 	"require-dev": {
 		"phpunit/phpunit": "4.1.*",
 		"cakephp/cakephp": "~3.1"
-	},
-	"support": {
-		"source": "https://github.com/trentrichardson/cakephp-scheduler"
 	},
 	"extra": {
 		"installer-name": "Scheduler"
