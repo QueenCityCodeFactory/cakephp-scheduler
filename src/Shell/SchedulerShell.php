@@ -114,7 +114,7 @@ class SchedulerShell extends Shell
             if (isset($config['jobs'])) {
                 foreach ($config['jobs'] as $k => $v) {
                     $v += ['extraParams' => []];
-                    $this->connect($k, $v['interval'], $v['command'], $v['extraParams');
+                    $this->connect($k, $v['interval'], $v['command'], $v['extraParams']);
                 }
             }
         }
