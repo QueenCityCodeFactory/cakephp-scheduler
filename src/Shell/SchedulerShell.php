@@ -83,6 +83,14 @@ class SchedulerShell extends Shell
 	public function main()
 	{
 
+		$this->initialize();
+
+		// ok, run them when they're ready
+		$this->__runJobs();
+	}
+
+	public function initialize()
+	{
 		// read in the config
 		if ($config = Configure::read($this->configKey)) {
 
@@ -110,9 +118,6 @@ class SchedulerShell extends Shell
 				}
 			}
 		}
-
-		// ok, run them when they're ready
-		$this->__runJobs();
 	}
 
 	/**
