@@ -15,10 +15,10 @@
  *
  * Then in bootstrap_cli.php schedule your jobs:
  *
- * Configure::write('SchedulerShell.jobs', array(
- * 	'CleanUp' => array('interval'=>'next day 5:00','task'=>'CleanUp'),// tomorrow at 5am
- * 	'Newsletters' => array('interval'=>'PT15M','task'=>'Newsletter') //every 15 minutes
- * ));
+ * Configure::write('SchedulerShell.jobs', [
+ * 	'CleanUp' => ['interval'=>'next day 5:00','task'=>'CleanUp'],// tomorrow at 5am
+ * 	'Newsletters' => ['interval'=>'PT15M','task'=>'Newsletter'] //every 15 minutes
+ * ]);
  *
  * -------------------------------------------------------------------
  * Run a shell task:
@@ -43,43 +43,42 @@ use \DateInterval;
 
 class SchedulerShell extends Shell{
 
-	public $tasks = array();
+	/**
+	 * The array of scheduled tasks.
+	 */
+	private $schedule = [];
 
-/**
- * The array of scheduled tasks.
- */
-	private $schedule = array();
-
-/**
- * The key which you set Configure::read() for your jobs
- */
+	/**
+	 * The key which you set Configure::read() for your jobs
+	 */
 	private $configKey = 'SchedulerShell';
 
-/**
- * The path where the store file is placed. null will store in Config folder
- */
-	private $storePath = null;
+	/**
+	 * The path where the store file is placed. null will store in Config folder
+	 */
+	private $storePath = TMP;
 
-/**
- * The file name of the store
- */
+	/**
+	 * The file name of the store
+	 */
 	private $storeFile = 'cron_scheduler.json';
 
-/**
- * The number of seconds to wait before running a parallel SchedulerShell
- */
+	/**
+	 * The file name of the processing flag file (indicates that existing job is running)
+	 */
+	private $processingFlagFile = '.cron_scheduler_processing_flag';
+
+	/**
+	 * The number of seconds to wait before running a parallel SchedulerShell
+	 */
 	private $processingTimeout = 600;
 
-/**
- * The main method which you want to schedule for the most frequent interval
- */
-
-/**
- * main function.
- *
- * @access public
- * @return void
- */
+	/**
+	 * The main method which you want to schedule for the most frequent interval
+	 *
+	 * @access public
+	 * @return void
+	 */
 	public function main() {
 
 		// read in the config
@@ -93,6 +92,10 @@ class SchedulerShell extends Shell{
 				$this->storeFile = $config['storeFile'];
 			}
 
+			if (isset($config['processingFlagFile'])) {
+				$this->processingFlagFile = $config['processingFlagFile'];
+			}
+
 			if (isset($config['processingTimeout'])) {
 				$this->processingTimeout = $config['processingTimeout'];
 			}
@@ -100,7 +103,7 @@ class SchedulerShell extends Shell{
 			// read in the jobs from the config
 			if (isset($config['jobs'])) {
 				foreach ($config['jobs'] as $k => $v) {
-					$v = $v + array('action' => 'main', 'pass' => array());
+					$v = $v + ['action' => 'main', 'pass' => []];
 					$this->connect($k, $v['interval'], $v['task'], $v['action'], $v['pass']);
 				}
 			}
@@ -110,19 +113,19 @@ class SchedulerShell extends Shell{
 		$this->runjobs();
 	}
 
-/**
- * The connect method adds tasks to the schedule
- *
- * @access public
- * @param string $name - unique name for this job, isn't bound to anything and doesn't matter what it is
- * @param string $interval - date interval string "PT5M" (every 5 min) or a relative Date string "next day 10:00"
- * @param string $task - name of the cake task to call
- * @param string $action - name of the method within the task to call
- * @param array  $pass - array of arguments to pass to the method
- * @return void
- */
-	public function connect($name, $interval, $task, $action = 'execute', $pass = array()) {
-		$this->schedule[$name] = array(
+	/**
+	 * The connect method adds tasks to the schedule
+	 *
+	 * @access public
+	 * @param string $name - unique name for this job, isn't bound to anything and doesn't matter what it is
+	 * @param string $interval - date interval string "PT5M" (every 5 min) or a relative Date string "next day 10:00"
+	 * @param string $task - name of the cake task to call
+	 * @param string $action - name of the method within the task to call
+	 * @param array  $pass - array of arguments to pass to the method
+	 * @return void
+	 */
+	public function connect($name, $interval, $task, $action = 'main', $pass = []) {
+		$this->schedule[$name] = [
 			'name' => $name,
 			'interval' => $interval,
 			'task' => $task,
@@ -130,21 +133,21 @@ class SchedulerShell extends Shell{
 			'args' => $pass,
 			'lastRun' => null,
 			'lastResult' => ''
-		);
+		];
 	}
 
-/**
- * Process the tasks when they need to run
- *
- * @access private
- * @return void
- */
+	/**
+	 * Process the tasks when they need to run
+	 *
+	 * @access private
+	 * @return void
+	 */
 	private function runjobs() {
-		$dir = new Folder(TMP);
+		$dir = new Folder($this->storePath);
 
 		// set processing flag so function takes place only once at any given time
-		$processing = count($dir->find('\.scheduler_running_flag'));
-		$processingFlag = new File($dir->slashTerm($dir->pwd()) . '.scheduler_running_flag');
+		$processingFlag = new File($dir->slashTerm($dir->pwd()) . $this->processingFlagFile, false);
+		$processing = $processingFlag->exists();
 
 		if ($processing && (time() - $processingFlag->lastChange()) < $this->processingTimeout) {
 			$this->out("Scheduler already running! Exiting.");
@@ -154,17 +157,14 @@ class SchedulerShell extends Shell{
 			$processingFlag->create();
 		}
 
-		if (!$this->storePath) {
-			$this->storePath = TMP;
-		}
-
 		// look for a store of the previous run
 		$store = "";
-		$storeFilePath = $this->storePath.$this->storeFile;
-		if (file_exists($storeFilePath)) {
-			$store = file_get_contents($storeFilePath);
+		$storeFile = new File($dir->slashTerm($dir->pwd()) . $this->storeFile);
+		if ($storeFile->exists()) {
+			$store = $storeFile->read();
+			$storeFile->close(); // just for safe measure
 		}
-		$this->out('Reading from: '. $storeFilePath);
+		$this->out('Reading from: '. $storeFile->pwd());
 
 		// build or rebuild the store
 		if ($store != '') {
@@ -209,22 +209,13 @@ class SchedulerShell extends Shell{
 
 				if (!isset($this->$task)) {
 					$this->$task = $this->Tasks->load($task);
-
-					// load models if they aren't already
-					// foreach ($this->$task->uses as $mk => $mv) {
-					// 	if (!isset($this->$task->$mv)) {
-					// 		App::uses('AppModel', 'Model');
-					// 		App::uses($mv, 'Model');
-					// 		$this->$task->$mv = new $mv();
-					// 	}
-					// }
 				}
 
 				// grab the entire schedule record incase it was updated..
 				$store[$name] = $this->schedule[$name];
 
 				// execute the task and store the result
-				$store[$name]['lastResult'] = call_user_func_array(array($this->$task, $action), $job['args']);
+				$store[$name]['lastResult'] = call_user_func_array([$this->$task, $action], $job['args']);
 
 				// assign it the current time
 				$now = new DateTime();
@@ -237,7 +228,8 @@ class SchedulerShell extends Shell{
 		}
 
 		// write the store back to the file
-		file_put_contents($this->storePath.$this->storeFile, json_encode($store));
+		$storeFile->write(json_encode($store));
+		$storeFile->close();
 
 		// remove processing flag
 		$processingFlag->delete();
