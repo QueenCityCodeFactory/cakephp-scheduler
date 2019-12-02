@@ -91,6 +91,8 @@ class SchedulerShell extends Shell
 
     public function init()
     {
+        $jobs = [];
+
         // read in the config
         if ($config = Configure::read($this->configKey)) {
 
@@ -111,18 +113,18 @@ class SchedulerShell extends Shell
             }
 
             // read in the jobs from the config
-            if (isset($config['jobs'])) {
-                foreach ($config['jobs'] as $k => $v) {
-                    $v += ['extraParams' => []];
-                    $this->connect($k, $v['interval'], $v['command'], $v['extraParams']);
-                }
-            }
+            $jobs += $config['jobs'] ?? [];
         }
 
         // Read in the extra parameters schedule
         $extraSchedules = $this->param('schedule');
         if (is_array($extraSchedules)) {
-            $this->schedule += $extraSchedules;
+            $jobs += $extraSchedules;
+        }
+
+        foreach ($jobs as $k => $v) {
+            $v += ['extraParams' => []];
+            $this->connect($k, $v['interval'], $v['command'], $v['extraParams']);
         }
     }
 
