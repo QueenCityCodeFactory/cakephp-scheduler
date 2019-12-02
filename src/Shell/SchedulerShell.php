@@ -29,19 +29,20 @@
  * -------------------------------------------------------------------
  * Troubleshooting
  * - may have to run dos2unix to fix line endings in the bin/cake file
- * - if you didn't use composer to install this plugin you may need to 
+ * - if you didn't use composer to install this plugin you may need to
  *   enable the plugin with Plugin::load('Scheduler', [ 'autoload'=>true ]);
  */
 namespace Scheduler\Shell;
 
+use \DateInterval;
+use \DateTime;
 use Cake\Console\Shell;
 use Cake\Core\Configure;
-use Cake\Filesystem\Folder;
 use Cake\Filesystem\File;
-use \DateTime;
-use \DateInterval;
+use Cake\Filesystem\Folder;
 
-class SchedulerShell extends Shell{
+class SchedulerShell extends Shell
+{
 
 	/**
 	 * The array of scheduled tasks.
@@ -79,7 +80,8 @@ class SchedulerShell extends Shell{
 	 * @access public
 	 * @return void
 	 */
-	public function main() {
+	public function main()
+	{
 
 		// read in the config
 		if ($config = Configure::read($this->configKey)) {
@@ -110,7 +112,7 @@ class SchedulerShell extends Shell{
 		}
 
 		// ok, run them when they're ready
-		$this->runjobs();
+		$this->__runJobs();
 	}
 
 	/**
@@ -124,7 +126,8 @@ class SchedulerShell extends Shell{
 	 * @param array  $pass - array of arguments to pass to the method
 	 * @return void
 	 */
-	public function connect($name, $interval, $task, $action = 'main', $pass = []) {
+	public function connect($name, $interval, $task, $action = 'main', $pass = [])
+	{
 		$this->schedule[$name] = [
 			'name' => $name,
 			'interval' => $interval,
@@ -142,7 +145,8 @@ class SchedulerShell extends Shell{
 	 * @access private
 	 * @return void
 	 */
-	private function runjobs() {
+	private function __runJobs()
+	{
 		$dir = new Folder($this->storePath);
 
 		// set processing flag so function takes place only once at any given time
