@@ -83,13 +83,13 @@ class SchedulerShell extends Shell
 	public function main()
 	{
 
-		$this->initialize();
+		$this->init();
 
 		// ok, run them when they're ready
 		$this->__runJobs();
 	}
 
-	public function initialize()
+	public function init()
 	{
 		// read in the config
 		if ($config = Configure::read($this->configKey)) {
@@ -113,11 +113,17 @@ class SchedulerShell extends Shell
 			// read in the jobs from the config
 			if (isset($config['jobs'])) {
 				foreach ($config['jobs'] as $k => $v) {
-					$v = $v + ['action' => 'main', 'pass' => []];
-					$this->connect($k, $v['interval'], $v['task'], $v['action'], $v['pass']);
+					$v += ['extraParams' => []];
+					$this->connect($k, $v['interval'], $v['command'], $v['extraParams');
 				}
 			}
 		}
+
+		// Read in the extra parameters schedule
+        $extraSchedules = $this->param('schedule');
+        if (is_array($extraSchedules)) {
+            $this->schedule += $extraSchedules;
+        }
 	}
 
 	/**
@@ -131,14 +137,13 @@ class SchedulerShell extends Shell
 	 * @param array  $pass - array of arguments to pass to the method
 	 * @return void
 	 */
-	public function connect($name, $interval, $task, $action = 'main', $pass = [])
+	public function connect($name, $interval, $command = [], $extraParams = [])
 	{
 		$this->schedule[$name] = [
 			'name' => $name,
 			'interval' => $interval,
-			'task' => $task,
-			'action' => $action,
-			'args' => $pass,
+			'command' => $command,
+			'extraParams' => $extraParams,
 			'lastRun' => null,
 			'lastResult' => ''
 		];
@@ -185,8 +190,8 @@ class SchedulerShell extends Shell
 		// run the jobs that need to be run, record the time
 		foreach ($this->schedule as $name => $job) {
 			$now = new DateTime();
-			$task = $job['task'];
-			$action = $job['action'];
+			$command = $job['command'];
+			$extraParams = $job['extraParams'];
 
 			// if the job has never been run before, create it
 			if (!isset($store[$name])) {
@@ -216,15 +221,14 @@ class SchedulerShell extends Shell
 				$this->out("Running $name");
 				$this->hr();
 
-				if (!isset($this->$task)) {
-					$this->$task = $this->Tasks->load($task);
-				}
-
 				// grab the entire schedule record incase it was updated..
 				$store[$name] = $this->schedule[$name];
 
-				// execute the task and store the result
-				$store[$name]['lastResult'] = call_user_func_array([$this->$task, $action], $job['args']);
+				// execute the command and store the result
+				$store[$name]['lastResult'] = $this->dispatchShell([
+					'command' => $command,
+					'extra' => $extraParams
+				]);
 
 				// assign it the current time
 				$now = new DateTime();
