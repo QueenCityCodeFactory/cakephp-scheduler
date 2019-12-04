@@ -1,5 +1,5 @@
 {
-	"name": "joeshipway/cakephp-scheduler",
+	"name": "QueenCityCodeFactory/cakephp-scheduler",
 	"type": "cakephp-plugin",
 	"description": "Makes scheduling tasks in CakePHP much simpler.",
 	"keywords": ["cakephp","scheduler","cron job","task"],
